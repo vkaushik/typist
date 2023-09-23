@@ -1,15 +1,181 @@
 package evaluate
 
+import (
+	"strings"
+
+	"github.com/vkaushik/typist/pkg/spelling"
+)
+
 type TypingError struct {
-	Error string
+	Error    string
 	Expected string
-	Actual string
+	Actual   string
 }
 
 func GetErrors(master, test string) ([]TypingError, []TypingError) {
-	
+	var fullMistakes []TypingError
+	var halfMistakes []TypingError
 
-	return nil, nil
+	// add white space errors
+	wsErr := GetWhiteSpaceError(master, test)
+	halfMistakes = append(halfMistakes, wsErr...)
+
+	masterWords := strings.Fields(master)
+	testWords := strings.Fields(test)
+
+	i := 0
+	for len(testWords) > 0 {
+		mw := masterWords[0]
+		tw := testWords[0]
+
+		res := CompareWords(mw, tw)
+		if res == NoError {
+			masterWords = masterWords[i+1:]
+			testWords = testWords[i+1:]
+		} else if res == CapitalizationError {
+			mistake := TypingError{
+				Error:    GetErrorString(res),
+				Expected: mw,
+				Actual:   tw,
+			}
+			halfMistakes = append(halfMistakes, mistake)
+			masterWords = masterWords[i+1:]
+			testWords = testWords[i+1:]
+		} else if ContainsPunctuation(mw) || ContainsPunctuation(tw) {
+			// TODO: handle punctuation scenarios here e.g. "hello. world" vs "hello.world", where candidate missed a space
+			// use SplitByPunctuation
+			masterWords = masterWords[i+1:]
+			testWords = testWords[i+1:]
+		} else if res == IncompleteWordError {
+			mistake := TypingError{
+				Error:    GetErrorString(res),
+				Expected: mw,
+				Actual:   tw,
+			}
+			fullMistakes = append(fullMistakes, mistake)
+			masterWords = masterWords[i+1:]
+			testWords = testWords[i+1:]
+		} else if res == SpellingError {
+			mistake := TypingError{
+				Error:    GetErrorString(res),
+				Expected: mw,
+				Actual:   tw,
+			}
+			fullMistakes = append(fullMistakes, mistake)
+			masterWords = masterWords[i+1:]
+			testWords = testWords[i+1:]
+		} else if isT, fullErr, halfErr := IsTranspositionError(masterWords, testWords); isT {
+			mistake := TypingError{
+				Error:    "transposition error",
+				Expected: masterWords[0] + " " + masterWords[1],
+				Actual:   testWords[0] + " " + testWords[1],
+			}
+			halfMistakes = append(halfMistakes, mistake)
+			halfMistakes = append(halfMistakes, halfErr...)
+			fullMistakes = append(fullMistakes, fullErr...)
+
+			masterWords = masterWords[2:]
+			testWords = testWords[2:]
+		} else {
+			mistake := TypingError{
+				Error:    GetErrorString(res),
+				Expected: mw,
+				Actual:   tw,
+			}
+			fullMistakes = append(fullMistakes, mistake)
+			masterWords = masterWords[i+1:]
+			testWords = testWords[i+1:]
+		}
+	}
+
+	return fullMistakes, halfMistakes
+}
+
+func GetWhiteSpaceError(master, test string) []TypingError {
+	var errs []TypingError
+	for c := countWhitespaceErrors(master, test); c > 0; c-- {
+		err := TypingError{
+			Error: "whitespace ommitted or missing",
+		}
+		errs = append(errs, err)
+	}
+
+	return errs
+}
+
+func countWhitespaceErrors(master, test string) int {
+	masterCount := spelling.CountWhitespaces(master)
+	testCount := spelling.CountWhitespaces(test)
+
+	diff := masterCount - testCount
+
+	if diff < 0 {
+		return -1 * diff
+	} else {
+		return diff
+	}
+}
+
+// if Transposition is done with capitalisation issue, then fine
+// if transposition is done with incpmolete word or spelling mistake then
+func IsTranspositionError(masterWords, testWords []string) (bool, []TypingError, []TypingError) {
+	var fullErrs []TypingError
+	var halfErrs []TypingError
+
+	if len(masterWords) < 2 || len(testWords) < 2 {
+		return false, fullErrs, halfErrs
+	}
+	mw, tw := masterWords[0], testWords[0]
+	nextMw, nextTw := masterWords[1], testWords[1]
+
+	res1 := CompareWords(nextMw, tw)
+	res2 := CompareWords(mw, nextTw)
+
+	if res1 == NoError && res2 == NoError {
+		return true, fullErrs, halfErrs
+	}
+
+	if !(res1 == NoError || res1 == CapitalizationError || res1 == SpellingError) && (res2 == NoError || res2 == CapitalizationError || res2 == SpellingError) {
+		return false, fullErrs, halfErrs
+	}
+
+	if res1 == CapitalizationError {
+		err := TypingError{
+			Error:    GetErrorString(res1),
+			Expected: nextMw,
+			Actual:   tw,
+		}
+		halfErrs = append(halfErrs, err)
+	}
+
+	if res2 == CapitalizationError {
+		err := TypingError{
+			Error:    GetErrorString(res1),
+			Expected: mw,
+			Actual:   nextTw,
+		}
+		halfErrs = append(halfErrs, err)
+	}
+
+	if res1 == SpellingError {
+		err := TypingError{
+			Error:    GetErrorString(res1),
+			Expected: nextMw,
+			Actual:   tw,
+		}
+		fullErrs = append(fullErrs, err)
+	}
+
+	if res2 == SpellingError {
+		err := TypingError{
+			Error:    GetErrorString(res1),
+			Expected: mw,
+			Actual:   nextTw,
+		}
+		fullErrs = append(fullErrs, err)
+	}
+
+	return true, fullErrs, halfErrs
 }
 
 /*

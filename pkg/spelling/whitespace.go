@@ -1,4 +1,4 @@
-package string
+package spelling
 
 import "strings"
 

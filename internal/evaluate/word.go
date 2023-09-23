@@ -1,6 +1,7 @@
 package evaluate
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/vkaushik/typist/pkg/spelling"
@@ -105,10 +106,46 @@ func GetErrorString(i int) string {
 	case SpellingError:
 		return "Spelling error."
 	case IncompleteWordError:
-		return "Incomplete word."
+		return "Incomplete word error."
 	case OtherError:
-		return "unequal words error."
+		return "Unequal words error."
 	}
 
 	return "something went wrong"
+}
+
+// ContainsPunctuation returns true if the input string contains any punctuation marks.
+func ContainsPunctuation(input string) bool {
+	// Define a regular expression pattern to match punctuation marks.
+	punctuationPattern := `[.,!?;:()"'-]`
+
+	// Compile the regular expression pattern.
+	re := regexp.MustCompile(punctuationPattern)
+
+	// Use FindString to check if there's a match in the input string.
+	return re.FindString(input) != ""
+}
+
+// SplitByPunctuation splits a string by punctuations and includes the punctuation marks.
+func SplitByPunctuation(input string) []string {
+	// Define a regular expression pattern to match punctuations.
+	punctuationPattern := `[.,!?;:()"'-]`
+
+	// Compile the regular expression pattern.
+	re := regexp.MustCompile(punctuationPattern)
+
+	// Use FindAllString to find all matches in the input string.
+	matches := re.FindAllString(input, -1)
+
+	// Use Split to split the input string by punctuation marks.
+	parts := re.Split(input, -1)
+
+	// Combine the parts and matches into the result.
+	var result []string
+	for i := 0; i < len(parts)-1; i++ {
+		result = append(result, parts[i], matches[i])
+	}
+	result = append(result, parts[len(parts)-1])
+
+	return result
 }
