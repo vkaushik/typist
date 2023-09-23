@@ -24,7 +24,7 @@ func GetErrors(master, test string) ([]TypingError, []TypingError) {
 	testWords := strings.Fields(test)
 
 	i := 0
-	for len(testWords) > 0 {
+	for len(testWords) > 0 && len(masterWords) > 0{
 		mw := masterWords[0]
 		tw := testWords[0]
 
