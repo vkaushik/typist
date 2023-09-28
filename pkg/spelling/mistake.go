@@ -12,7 +12,12 @@ func IsSpellingMistake(expected, actual string) bool {
 		return false
 	}
 
-	return distance <= 2
+	if (len(actual) / distance) >= 2 || (len(expected) / distance) >= 2 {
+		return true
+	}
+
+	// return distance <= 2
+	return false
 }
 
 func max(a, b int) int {

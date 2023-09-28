@@ -70,7 +70,7 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			continue
 		}
 
-		// now either user have missed the word 
+		// now either user have missed the word
 		// or typed an incorrect word - possible mistakes
 
 		if len(masterWord) < 2 { // no more words in master list
@@ -135,6 +135,16 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			fmt.Println(err.Error())
 			continue
 		} else if strings.HasPrefix(masterWord, testWord) || strings.HasPrefix(testWord, masterWord) { // Check for incomplete words (half-typed).
+			// check if prefix issue is because of a punctuation missing
+			compositeWord := masterWord + nextMasterWord
+			if strings.EqualFold(compositeWord, testWord) {
+				err := error.NewTypingError(error.MissingPunctuation, masterWord, testWord, WordIndexInMaster)
+				halfMistakes = append(halfMistakes, err)
+				masterWordList = masterWordList[i+1:]
+				testWordList = testWordList[1:]
+				continue
+			}
+
 			err := error.NewTypingError(error.IncompleteWord, masterWord, testWord, WordIndexInMaster)
 			fullMistakes = append(fullMistakes, err)
 
