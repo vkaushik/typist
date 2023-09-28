@@ -22,3 +22,4 @@ go.work
 
 local
 .DS_Store
+.vscode

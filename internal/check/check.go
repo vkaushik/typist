@@ -20,15 +20,19 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 		master = master + master
 	}
 
+	// split strings by spaces and punctuations. space and punctuation also there in resulting list.
 	masterWordList := tokenize.Tokenize(master)
 	testWordList := tokenize.Tokenize(test)
 	WordIndexInMaster := -1
-	tokenize.PrintWordWithIndex(masterWordList)
+	tokenize.PrintWordWithIndex(masterWordList) // for easy debugging
 
-	for len(testWordList) > 0 && len(masterWordList) > 0 {
+	for len(testWordList) > 0 && len(masterWordList) > 0 { // compare words from master text one by one
 		WordIndexInMaster++
 		masterWord := masterWordList[0]
 		testWord := testWordList[0]
+
+		fmt.Printf(`"%s" == "%s"`, masterWord, testWord) // for easy debugging
+		fmt.Println()
 
 		if masterWord == testWord { // no mistake
 			masterWordList = masterWordList[1:]
@@ -36,7 +40,7 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			continue
 		}
 
-		if !tokenize.IsAlphanumeric(masterWord) {
+		if !tokenize.IsAlphanumeric(masterWord) { // if it is space or punctuation, that means user missed it
 			err := error.NewTypingError(error.MissingPunctuation, masterWord, testWord, WordIndexInMaster)
 			halfMistakes = append(halfMistakes, err)
 
@@ -45,7 +49,7 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			continue
 		}
 
-		if !tokenize.IsAlphanumeric(testWord) {
+		if !tokenize.IsAlphanumeric(testWord) { // if masterWord is alphanumeric but testWord is space of punctuation, that means that's an extra punctuation from user
 			err := error.NewTypingError(error.ExtraPunctuation, masterWord, testWord, WordIndexInMaster)
 			halfMistakes = append(halfMistakes, err)
 
@@ -53,6 +57,8 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			fmt.Println(err.Error())
 			continue
 		}
+
+		// here onwards both test and master word are alphanumeric word
 
 		if strings.EqualFold(masterWord, testWord) { // Check for capitalisation mistake
 			err := error.NewTypingError(error.CapitalisationMistake, masterWord, testWord, WordIndexInMaster)
@@ -64,27 +70,9 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			continue
 		}
 
-		if spelling.IsSpellingMistake(masterWord, testWord) { // Check for spelling errors using Levenshtein distance.
-			err := error.NewTypingError(error.SpellingMistake, masterWord, testWord, WordIndexInMaster)
-			fullMistakes = append(fullMistakes, err)
+		// now either user have missed the word 
+		// or typed an incorrect word - possible mistakes
 
-			masterWordList = masterWordList[1:]
-			testWordList = testWordList[1:]
-			fmt.Println(err.Error())
-			continue
-		}
-
-		if strings.HasPrefix(masterWord, testWord) || strings.HasPrefix(testWord, masterWord) { // Check for incomplete words (half-typed).
-			err := error.NewTypingError(error.IncompleteWord, masterWord, testWord, WordIndexInMaster)
-			fullMistakes = append(fullMistakes, err)
-
-			masterWordList = masterWordList[1:]
-			testWordList = testWordList[1:]
-			fmt.Println(err.Error())
-			continue
-		}
-
-		// either user have missed the word or typed an incorrect word
 		if len(masterWord) < 2 { // no more words in master list
 			err := error.NewTypingError(error.IncorrectWord, masterWord, testWord, WordIndexInMaster)
 			fullMistakes = append(fullMistakes, err)
@@ -92,10 +80,11 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			continue
 		}
 
+		// find the next master word to figure out if user missed the word completely
 		var nextMasterWord string
 		var punctuationMissingMistakesIfMissingWordCase []error.TypingError
 		var i int
-		for i = 1; i < len(masterWord); i++ {
+		for i = 1; i < len(masterWordList); i++ {
 			nextMasterWord = masterWordList[i]
 			if tokenize.IsAlphanumeric(nextMasterWord) {
 				break
@@ -104,7 +93,7 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			punctuationMissingMistakesIfMissingWordCase = append(punctuationMissingMistakesIfMissingWordCase, err)
 		}
 
-		if i == len(masterWord) { // no alphanueric word found in remaining master word list
+		if i == len(masterWordList) { // no alphanueric word found in remaining master word list
 			err := error.NewTypingError(error.IncorrectWord, "", testWord, WordIndexInMaster)
 			fullMistakes = append(fullMistakes, err)
 			masterWordList = []string{}
@@ -112,7 +101,7 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 		}
 
 		var userMissedWord bool
-		if nextMasterWord == testWord {
+		if nextMasterWord == testWord { // testWord is matching with nextMasterWord i.e. user missed the masterWord
 			userMissedWord = true
 		} else if spelling.IsSpellingMistake(nextMasterWord, testWord) {
 			userMissedWord = true
@@ -136,29 +125,35 @@ func GetErrors(master, test string) ([]error.TypingError, []error.TypingError) {
 			}
 			masterWordList = masterWordList[i+1:]
 			testWordList = testWordList[1:]
-		} else {
+			continue
+		} else if spelling.IsSpellingMistake(masterWord, testWord) { // Check for spelling errors using Levenshtein distance.
+			err := error.NewTypingError(error.SpellingMistake, masterWord, testWord, WordIndexInMaster)
+			fullMistakes = append(fullMistakes, err)
+
+			masterWordList = masterWordList[1:]
+			testWordList = testWordList[1:]
+			fmt.Println(err.Error())
+			continue
+		} else if strings.HasPrefix(masterWord, testWord) || strings.HasPrefix(testWord, masterWord) { // Check for incomplete words (half-typed).
+			err := error.NewTypingError(error.IncompleteWord, masterWord, testWord, WordIndexInMaster)
+			fullMistakes = append(fullMistakes, err)
+
+			masterWordList = masterWordList[1:]
+			testWordList = testWordList[1:]
+			fmt.Println(err.Error())
+			continue
+		} else { // wrong word
 			masterWordList = masterWordList[1:]
 			testWordList = testWordList[1:]
 			err := error.NewTypingError(error.IncorrectWord, masterWord, testWord, WordIndexInMaster)
 			fullMistakes = append(fullMistakes, err)
+			continue
 		}
 
-		// the word has two two
-		// the has has two
-
-		// hello world how
-		// hello how
-
-		// hello world. why
-		// hello why
-
-		// hello. .how
-		// be
-
 		fmt.Println("something went wrong, fix it", masterWord, " - ", testWord, " : ", WordIndexInMaster)
-		fmt.Println()
-		fmt.Println(masterWordList)
-		fmt.Println(testWordList)
+		// fmt.Println()
+		// fmt.Println(masterWordList)
+		// fmt.Println(testWordList)
 		fmt.Println("-----------")
 		time.Sleep(time.Second * 2)
 	}
