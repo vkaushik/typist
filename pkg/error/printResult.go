@@ -5,6 +5,7 @@ import "fmt"
 const (
 	MissingPunctuation    = "punctuation missing"
 	ExtraPunctuation      = "extra punctuation"
+	IncorrectPunctuation  = "incorrect punctuation"
 	CapitalisationMistake = "capitalisation mistake"
 	SpellingMistake       = "spelling mistake"
 	IncompleteWord        = "incomplete word"
@@ -35,6 +36,7 @@ func PrintHalfMistakes(errs []TypingError) {
 	errorMap := map[string][]TypingError{
 		MissingPunctuation:    {},
 		ExtraPunctuation:      {},
+		IncorrectPunctuation:  {},
 		CapitalisationMistake: {},
 	}
 
